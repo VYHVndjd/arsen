@@ -86,7 +86,7 @@ if __name__ == '__main__':
     signal_thread = Thread(target=send_signal_task, daemon=True)
     signal_thread.start()
     
-    updater = Updater(TOKEN, use_context=True)
+    updater = Updater(TOKEN)
     dp = updater.dispatcher
     
     dp.add_handler(CommandHandler("start", start))
