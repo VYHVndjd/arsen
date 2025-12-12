@@ -1,2 +1,4 @@
 python-telegram-bot
 requests
+# Це змусить Koyeb запустити файл:
+/usr/bin/python3 signal_main.py
