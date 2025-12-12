@@ -1,0 +1,2 @@
+# ... (інший код)
+TOKEN = '7680522904:AAFzLxiVWnOB9vJqI6qOX7Fru6VlTk7KSRw'
