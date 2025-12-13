@@ -1,7 +1,7 @@
 import telebot
 from telebot import types
 import random
-import time  # Додаємо бібліотеку для затримки часу
+import time
 
 # Твій токен
 API_TOKEN = '8584033541:AAHd4M5g7hNZ0_K5krbNg5vF8K-7fo0AJD0'
@@ -12,21 +12,19 @@ bot = telebot.TeleBot(API_TOKEN)
 user_data = {}
 
 # --- ПОСИЛАННЯ ---
-# Виносимо посилання в змінну для зручності
 REGISTER_LINK = "https://u3.shortink.io/register?utm_campaign=833673&utm_source=affiliate&utm_medium=sr&a=RqqZmq3RiEnldX&ac=aitrendmaster&code=50START"
 
-# --- ТЕКСТИ ---
-# Повідомлення після вибору мови (однакове для всіх, як у ТЗ)
-WELCOME_MSG = (
-    "⚡ <b>Welcome to AiTrendMaster</b>\n\n"
-    "Follow these quick steps to activate your access:\n"
-    f"1️⃣ Sign up using our <a href='{REGISTER_LINK}'>official link</a>\n"
-    "2️⃣ Make your first deposit\n"
-    "3️⃣ Set up a currency pair and start trading"
-)
-
+# --- ТЕКСТИ ТА ПЕРЕКЛАДИ ---
 TEXTS = {
     'ua': {
+        # Переклад вітання
+        'welcome_body': (
+            "⚡ <b>Ласкаво просимо до AiTrendMaster</b>\n\n"
+            "Виконайте ці швидкі кроки для активації доступу:\n"
+            f"1️⃣ Зареєструйтесь за <a href='{REGISTER_LINK}'>офіційним посиланням</a>\n"
+            "2️⃣ Зробіть перший депозит\n"
+            "3️⃣ Налаштуйте валютну пару та почніть торгувати"
+        ),
         'menu_btn': "📊 Отримати сигнал",
         'choose_pair': "Оберіть крипто-пару:",
         'choose_time': "Оберіть час експірації:",
@@ -37,6 +35,14 @@ TEXTS = {
         'lang_set': "Мову встановлено: Українська 🇺🇦"
     },
     'ru': {
+        # Переклад вітання
+        'welcome_body': (
+            "⚡ <b>Добро пожаловать в AiTrendMaster</b>\n\n"
+            "Выполните эти быстрые шаги для активации доступа:\n"
+            f"1️⃣ Зарегистрируйтесь по <a href='{REGISTER_LINK}'>официальной ссылке</a>\n"
+            "2️⃣ Сделайте первый депозит\n"
+            "3️⃣ Настройте валютную пару и начните торговать"
+        ),
         'menu_btn': "📊 Получить сигнал",
         'choose_pair': "Выберите крипто-пару:",
         'choose_time': "Выберите время экспирации:",
@@ -47,6 +53,14 @@ TEXTS = {
         'lang_set': "Язык установлен: Русский 🇷🇺"
     },
     'en': {
+        # Оригінал вітання
+        'welcome_body': (
+            "⚡ <b>Welcome to AiTrendMaster</b>\n\n"
+            "Follow these quick steps to activate your access:\n"
+            f"1️⃣ Sign up using our <a href='{REGISTER_LINK}'>official link</a>\n"
+            "2️⃣ Make your first deposit\n"
+            "3️⃣ Set up a currency pair and start trading"
+        ),
         'menu_btn': "📊 Get Signal",
         'choose_pair': "Choose crypto pair:",
         'choose_time': "Choose expiration time:",
@@ -64,7 +78,6 @@ CURRENCY_PAIRS = [
     "SOL/USDT", "LTC/USDT", "ADA/USDT", "DOGE/USDT"
 ]
 
-# Змінено хвилини на секунди
 TIMES = ["5 sec", "10 sec", "15 sec"]
 
 # --- ЛОГІКА БОТА ---
@@ -78,7 +91,6 @@ def send_welcome(message):
     btn_en = types.InlineKeyboardButton("English 🇬🇧", callback_data='lang_en')
     markup.add(btn_en, btn_ru, btn_ua)
     
-    # Виправлено текст запрошення
     bot.send_message(message.chat.id, "Please choose your language / Выберите язык:", reply_markup=markup)
 
 # Обробка вибору мови
@@ -91,20 +103,25 @@ def set_language(call):
         user_data[chat_id] = {}
     user_data[chat_id]['lang'] = lang_code
     
+    # Видаляємо повідомлення з вибором мови
     bot.delete_message(chat_id, call.message.message_id)
     
     text_dict = TEXTS[lang_code]
+    
+    # Створюємо клавіатуру меню
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     item_signal = types.KeyboardButton(text_dict['menu_btn'])
     markup.add(item_signal)
     
-    # Спочатку повідомлення про встановлення мови
-    # bot.send_message(chat_id, text_dict['lang_set'], reply_markup=markup) 
-    # (Можна прибрати, якщо хочеш одразу вітальне повідомлення, але краще залишити для підтвердження меню)
-    
-    # Надсилаємо "Welcome to AiTrendMaster" з посиланням
-    # parse_mode='HTML' важливий для роботи <a href>
-    bot.send_message(chat_id, WELCOME_MSG, parse_mode='HTML', disable_web_page_preview=True, reply_markup=markup)
+    # Відправляємо ВІТАЛЬНЕ ПОВІДОМЛЕННЯ
+    # disable_web_page_preview=False --> Вмикає відображення картинки сайту
+    bot.send_message(
+        chat_id, 
+        text_dict['welcome_body'], 
+        parse_mode='HTML', 
+        disable_web_page_preview=False, 
+        reply_markup=markup
+    )
 
 # 2. Натискання кнопки "Отримати сигнал"
 @bot.message_handler(func=lambda message: True)
@@ -179,7 +196,7 @@ def callback_time(call):
         f"-------------------"
     )
     
-    # 4. Редагуємо те саме повідомлення на результат
+    # 4. Редагуємо повідомлення на результат
     bot.edit_message_text(chat_id=chat_id, message_id=call.message.message_id, 
                           text=result_text, parse_mode='HTML')
 
