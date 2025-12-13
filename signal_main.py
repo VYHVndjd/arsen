@@ -29,8 +29,8 @@ TEXTS = {
         'choose_time': "Оберіть час експірації:",
         'analyzing': "⏳ <b>Аналізую ринок...</b>\n\nЦе може зайняти декілька секунд...",
         'signal_res': "Сигнал для",
-        'action_up': "🟢 ВГОРУ (CALL)",
-        'action_down': "🔴 ВНИЗ (PUT)",
+        'action_up': "🟢 ВГОРУ (LONG)",
+        'action_down': "🔴 ВНИЗ (SHORT)",
         'lang_set': "Мову встановлено: Українська 🇺🇦"
     },
     'ru': {
@@ -46,8 +46,8 @@ TEXTS = {
         'choose_time': "Выберите время экспирации:",
         'analyzing': "⏳ <b>Анализирую рынок...</b>\n\nЭто может занять несколько секунд...",
         'signal_res': "Сигнал для",
-        'action_up': "🟢 ВВЕРХ (CALL)",
-        'action_down': "🔴 ВНИЗ (PUT)",
+        'action_up': "🟢 ВВЕРХ (LONG)",
+        'action_down': "🔴 ВНИЗ (SHORT)",
         'lang_set': "Язык установлен: Русский 🇷🇺"
     },
     'en': {
@@ -63,13 +63,14 @@ TEXTS = {
         'choose_time': "Choose expiration time:",
         'analyzing': "⏳ <b>Analyzing market...</b>\n\nPlease wait a few seconds...",
         'signal_res': "Signal for",
-        'action_up': "🟢 UP (CALL)",
-        'action_down': "🔴 DOWN (PUT)",
+        # ТУТ ЗМІНЕНО (тільки LONG/SHORT)
+        'action_up': "🟢 LONG",
+        'action_down': "🔴 SHORT",
         'lang_set': "Language set: English 🇬🇧"
     }
 }
 
-# --- СПИСКИ (ОНОВЛЕНО НА OTC ПАРИ) ---
+# --- СПИСКИ (OTC ПАРИ) ---
 CURRENCY_PAIRS = [
     "EUR/USD OTC",
     "EUR/TRY OTC",
@@ -137,7 +138,6 @@ def show_pairs(chat_id, texts):
     markup = types.InlineKeyboardMarkup(row_width=2)
     buttons = []
     for pair in CURRENCY_PAIRS:
-        # callback_data має обмеження по довжині, але ці назви влізуть
         buttons.append(types.InlineKeyboardButton(pair, callback_data=f'pair_{pair}'))
     markup.add(*buttons)
     
@@ -147,7 +147,6 @@ def show_pairs(chat_id, texts):
 @bot.callback_query_handler(func=lambda call: call.data.startswith('pair_'))
 def callback_pair(call):
     chat_id = call.message.chat.id
-    # Отримуємо назву пари (все, що після 'pair_')
     pair = call.data.replace('pair_', '')
     
     user_data[chat_id]['temp_pair'] = pair
