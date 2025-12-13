@@ -1,139 +1,163 @@
-import telegram
+import telebot
+from telebot import types
 import random
-import time
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
+import os
 
-# === ВАШ ТОКЕН ===
-TOKEN = '7680522904:AAFzLxiVWnOB9vJqI6qOX7Fru6VlTk7KSRw'
+# Твій токен
+API_TOKEN = '8584033541:AAHd4M5g7hNZ0_K5krbNg5vF8K-7fo0AJD0'
 
-def start(update, context):
-    """Викликається командою /start. Показує привітання та кнопку."""
+bot = telebot.TeleBot(API_TOKEN)
+
+# --- БАЗА ДАНИХ (Тимчасова, в пам'яті) ---
+user_data = {}  # Зберігає налаштування: {user_id: {'lang': 'ua', 'pair': 'EUR/USD'}}
+
+# --- ТЕКСТИ ТА ПЕРЕКЛАДИ ---
+TEXTS = {
+    'ua': {
+        'welcome': "Привіт! Оберіть мову:",
+        'menu_btn': "📊 Отримати сигнал",
+        'choose_pair': "Оберіть валютну пару:",
+        'choose_time': "Оберіть час експірації:",
+        'analyzing': "⏳ Аналізую ринок...",
+        'signal_res': "Сигнал для",
+        'action_up': "🟢 ВГОРУ (BUY)",
+        'action_down': "🔴 ВНИЗ (SELL)",
+        'lang_set': "Мову встановлено: Українська 🇺🇦"
+    },
+    'ru': {
+        'welcome': "Привет! Выберите язык:",
+        'menu_btn': "📊 Получить сигнал",
+        'choose_pair': "Выберите валютную пару:",
+        'choose_time': "Выберите время экспирации:",
+        'analyzing': "⏳ Анализирую рынок...",
+        'signal_res': "Сигнал для",
+        'action_up': "🟢 ВВЕРХ (BUY)",
+        'action_down': "🔴 ВНИЗ (SELL)",
+        'lang_set': "Язык установлен: Русский 🇷🇺"
+    },
+    'en': {
+        'welcome': "Hello! Choose language:",
+        'menu_btn': "📊 Get Signal",
+        'choose_pair': "Choose currency pair:",
+        'choose_time': "Choose expiration time:",
+        'analyzing': "⏳ Analyzing market...",
+        'signal_res': "Signal for",
+        'action_up': "🟢 UP (BUY)",
+        'action_down': "🔴 DOWN (SELL)",
+        'lang_set': "Language set: English 🇬🇧"
+    }
+}
+
+# --- СПИСКИ ---
+CURRENCY_PAIRS = [
+    "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF",
+    "AUD/USD", "USD/CAD", "NZD/USD", "EUR/GBP"
+]
+
+TIMES = ["5 min", "10 min", "15 min"]
+
+# --- ЛОГІКА БОТА ---
+
+# 1. Старт і вибір мови
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    markup = types.InlineKeyboardMarkup(row_width=3)
+    btn_ua = types.InlineKeyboardButton("Українська 🇺🇦", callback_data='lang_ua')
+    btn_ru = types.InlineKeyboardButton("Русский 🇷🇺", callback_data='lang_ru')
+    btn_en = types.InlineKeyboardButton("English 🇬🇧", callback_data='lang_en')
+    markup.add(btn_en, btn_ru, btn_ua)
     
-    # Текст із ТЗ з вбудованим посиланням (Markdown)
-    text = (
-        "⚡ *Welcome to AiTrendMaster*\n\n"
-        "Follow these quick steps to activate your access:\n"
-        "1️⃣ Sign up using our [official link](https://u3.shortink.io/register?utm_campaign=833673&utm_source=affiliate&utm_medium=sr&a=RqqZmq3RiEnldX&ac=aitrendmaster&code=50START)\n"
-        "2️⃣ Make your first deposit\n"
-        "3️⃣ Set up a currency pair and start trading"
-    )
+    bot.send_message(message.chat.id, "Please choose your language / Оберіть мову:", reply_markup=markup)
 
-    # Кнопка під текстом
-    keyboard = [
-        [InlineKeyboardButton("Отримати сигнали 📊", callback_data='get_signals')]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+# Обробка вибору мови
+@bot.callback_query_handler(func=lambda call: call.data.startswith('lang_'))
+def set_language(call):
+    lang_code = call.data.split('_')[1] # ua, ru або en
+    chat_id = call.message.chat.id
+    
+    if chat_id not in user_data:
+        user_data[chat_id] = {}
+    user_data[chat_id]['lang'] = lang_code
+    
+    bot.delete_message(chat_id, call.message.message_id)
+    
+    text_dict = TEXTS[lang_code]
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    item_signal = types.KeyboardButton(text_dict['menu_btn'])
+    markup.add(item_signal)
+    
+    bot.send_message(chat_id, text_dict['lang_set'], reply_markup=markup)
 
-    # Якщо це натискання кнопки "Назад", редагуємо старе повідомлення
-    if update.callback_query:
-        update.callback_query.edit_message_text(
-            text=text, 
-            reply_markup=reply_markup, 
-            parse_mode=telegram.ParseMode.MARKDOWN,
-            disable_web_page_preview=True
-        )
+# 2. Натискання кнопки "Отримати сигнал"
+@bot.message_handler(func=lambda message: True)
+def handle_message(message):
+    chat_id = message.chat.id
+    user_lang = user_data.get(chat_id, {}).get('lang', 'en')
+    texts = TEXTS[user_lang]
+
+    if message.text in [TEXTS['ua']['menu_btn'], TEXTS['ru']['menu_btn'], TEXTS['en']['menu_btn']]:
+        show_pairs(chat_id, texts)
     else:
-        # Якщо це команда /start, надсилаємо нове
-        update.message.reply_text(
-            text=text, 
-            reply_markup=reply_markup, 
-            parse_mode=telegram.ParseMode.MARKDOWN,
-            disable_web_page_preview=True
-        )
+        bot.send_message(chat_id, "Type /start to restart.")
 
-def button_handler(update, context):
-    """Обробляє натискання на кнопки."""
-    query = update.callback_query
-    query.answer() # Важливо, щоб кнопка перестала "крутитися"
-
-    # Якщо натиснули "Отримати сигнали"
-    if query.data == 'get_signals':
-        keyboard = [
-            [InlineKeyboardButton("BTC/USDT", callback_data='pair_BTC/USDT'), InlineKeyboardButton("ETH/USDT", callback_data='pair_ETH/USDT')],
-            [InlineKeyboardButton("SOL/USDT", callback_data='pair_SOL/USDT'), InlineKeyboardButton("XRP/USDT", callback_data='pair_XRP/USDT')],
-            [InlineKeyboardButton("BNB/USDT", callback_data='pair_BNB/USDT'), InlineKeyboardButton("LTC/USDT", callback_data='pair_LTC/USDT')],
-            [InlineKeyboardButton("🔙 Назад", callback_data='main_menu')]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        query.edit_message_text(
-            text="📉 *Оберіть валютну пару для аналізу:*",
-            reply_markup=reply_markup,
-            parse_mode=telegram.ParseMode.MARKDOWN
-        )
-
-    # Якщо натиснули "Назад"
-    elif query.data == 'main_menu':
-        start(update, context)
-
-    # Якщо обрали конкретну пару (починається з 'pair_')
-    elif query.data.startswith('pair_'):
-        pair = query.data.split('_')[1] # Витягуємо назву пари, напр. BTC/USDT
-        
-        # Генеруємо сигнал
-        signal_text = generate_signal(pair)
-        
-        # Додаємо кнопку "Назад" або "Інша пара"
-        keyboard = [
-            [InlineKeyboardButton("🔄 Інша пара", callback_data='get_signals')],
-            [InlineKeyboardButton("🏠 Головне меню", callback_data='main_menu')]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        query.edit_message_text(
-            text=signal_text,
-            reply_markup=reply_markup,
-            parse_mode=telegram.ParseMode.MARKDOWN
-        )
-
-def generate_signal(pair):
-    """Генерує текст сигналу для обраної пари."""
-    direction = random.choice(["LONG 🟢", "SHORT 🔴"])
-    leverage = random.choice([20, 25, 30, 50])
+# 3. Вибір валютної пари
+def show_pairs(chat_id, texts):
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    buttons = []
+    for pair in CURRENCY_PAIRS:
+        buttons.append(types.InlineKeyboardButton(pair, callback_data=f'pair_{pair}'))
+    markup.add(*buttons)
     
-    # Генеруємо приблизну ціну (просто випадкові числа для імітації)
-    # У реальному боті тут був би запит до API, але для імітації достатньо рандому
-    if "BTC" in pair: entry = random.randint(95000, 99000)
-    elif "ETH" in pair: entry = random.randint(2600, 2800)
-    elif "SOL" in pair: entry = random.randint(180, 210)
-    elif "BNB" in pair: entry = random.randint(600, 650)
-    else: entry = random.uniform(0.5, 150)
-    
-    entry_price = round(entry, 2)
-    
-    # Розрахунок тейк-профітів
-    tp1 = round(entry * (1.01 if "LONG" in direction else 0.99), 2)
-    tp2 = round(entry * (1.02 if "LONG" in direction else 0.98), 2)
-    sl = round(entry * (0.98 if "LONG" in direction else 1.02), 2)
+    bot.send_message(chat_id, texts['choose_pair'], reply_markup=markup)
 
-    message = (
-        f"📊 **ANALYTICS FOR {pair}**\n"
-        f"➖➖➖➖➖➖➖➖➖➖\n"
-        f"💎 **Position:** {direction}\n"
-        f"🚀 **Leverage:** Cross {leverage}x\n"
-        f"💰 **Entry Price:** {entry_price}\n\n"
-        f"🎯 **Targets:**\n"
-        f"1️⃣ TP: {tp1}\n"
-        f"2️⃣ TP: {tp2}\n\n"
-        f"🛑 **Stop Loss:** {sl}\n"
-        f"➖➖➖➖➖➖➖➖➖➖\n"
-        f"⚠️ _Artificial Intelligence Analysis_"
+# Обробка вибору пари
+@bot.callback_query_handler(func=lambda call: call.data.startswith('pair_'))
+def callback_pair(call):
+    chat_id = call.message.chat.id
+    pair = call.data.split('_')[1]
+    
+    user_data[chat_id]['temp_pair'] = pair
+    user_lang = user_data.get(chat_id, {}).get('lang', 'en')
+    texts = TEXTS[user_lang]
+    
+    show_time(call.message, texts)
+
+# 4. Вибір часу
+def show_time(message, texts):
+    markup = types.InlineKeyboardMarkup(row_width=3)
+    buttons = []
+    for time in TIMES:
+        buttons.append(types.InlineKeyboardButton(time, callback_data=f'time_{time}'))
+    markup.add(*buttons)
+    
+    bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id, 
+                          text=texts['choose_time'], reply_markup=markup)
+
+# Обробка вибору часу і видача сигналу
+@bot.callback_query_handler(func=lambda call: call.data.startswith('time_'))
+def callback_time(call):
+    chat_id = call.message.chat.id
+    time_val = call.data.split('_')[1]
+    
+    user_lang = user_data.get(chat_id, {}).get('lang', 'en')
+    texts = TEXTS[user_lang]
+    pair = user_data[chat_id].get('temp_pair', 'Unknown')
+    
+    bot.edit_message_text(chat_id=chat_id, message_id=call.message.message_id, 
+                          text=texts['analyzing'])
+    
+    direction = random.choice([texts['action_up'], texts['action_down']])
+    
+    result_text = (
+        f"📊 <b>{texts['signal_res']} {pair}</b>\n"
+        f"⏱ <b>{time_val}</b>\n"
+        f"-------------------\n"
+        f"{direction}\n"
+        f"-------------------"
     )
-    return message
+    
+    bot.send_message(chat_id, result_text, parse_mode='HTML')
 
+# Запуск
 if __name__ == '__main__':
-    # Створення Updater
-    updater = Updater(TOKEN)
-    dp = updater.dispatcher
-    
-    # Обробники команд
-    dp.add_handler(CommandHandler("start", start))
-    
-    # Обробник натискання кнопок
-    dp.add_handler(CallbackQueryHandler(button_handler))
-    
-    print("Бот запущено...")
-    
-    # Запуск бота
-    updater.start_polling()
-    updater.idle()
+    bot.infinity_polling()
