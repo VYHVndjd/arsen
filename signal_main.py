@@ -17,7 +17,6 @@ REGISTER_LINK = "https://u3.shortink.io/register?utm_campaign=833673&utm_source=
 # --- ТЕКСТИ ТА ПЕРЕКЛАДИ ---
 TEXTS = {
     'ua': {
-        # Переклад вітання
         'welcome_body': (
             "⚡ <b>Ласкаво просимо до AiTrendMaster</b>\n\n"
             "Виконайте ці швидкі кроки для активації доступу:\n"
@@ -26,16 +25,15 @@ TEXTS = {
             "3️⃣ Налаштуйте валютну пару та почніть торгувати"
         ),
         'menu_btn': "📊 Отримати сигнал",
-        'choose_pair': "Оберіть крипто-пару:",
+        'choose_pair': "Оберіть валютну пару:",
         'choose_time': "Оберіть час експірації:",
         'analyzing': "⏳ <b>Аналізую ринок...</b>\n\nЦе може зайняти декілька секунд...",
         'signal_res': "Сигнал для",
-        'action_up': "🟢 ВГОРУ (LONG)",
-        'action_down': "🔴 ВНИЗ (SHORT)",
+        'action_up': "🟢 ВГОРУ (CALL)",
+        'action_down': "🔴 ВНИЗ (PUT)",
         'lang_set': "Мову встановлено: Українська 🇺🇦"
     },
     'ru': {
-        # Переклад вітання
         'welcome_body': (
             "⚡ <b>Добро пожаловать в AiTrendMaster</b>\n\n"
             "Выполните эти быстрые шаги для активации доступа:\n"
@@ -44,16 +42,15 @@ TEXTS = {
             "3️⃣ Настройте валютную пару и начните торговать"
         ),
         'menu_btn': "📊 Получить сигнал",
-        'choose_pair': "Выберите крипто-пару:",
+        'choose_pair': "Выберите валютную пару:",
         'choose_time': "Выберите время экспирации:",
         'analyzing': "⏳ <b>Анализирую рынок...</b>\n\nЭто может занять несколько секунд...",
         'signal_res': "Сигнал для",
-        'action_up': "🟢 ВВЕРХ (LONG)",
-        'action_down': "🔴 ВНИЗ (SHORT)",
+        'action_up': "🟢 ВВЕРХ (CALL)",
+        'action_down': "🔴 ВНИЗ (PUT)",
         'lang_set': "Язык установлен: Русский 🇷🇺"
     },
     'en': {
-        # Оригінал вітання
         'welcome_body': (
             "⚡ <b>Welcome to AiTrendMaster</b>\n\n"
             "Follow these quick steps to activate your access:\n"
@@ -62,20 +59,24 @@ TEXTS = {
             "3️⃣ Set up a currency pair and start trading"
         ),
         'menu_btn': "📊 Get Signal",
-        'choose_pair': "Choose crypto pair:",
+        'choose_pair': "Choose currency pair:",
         'choose_time': "Choose expiration time:",
         'analyzing': "⏳ <b>Analyzing market...</b>\n\nPlease wait a few seconds...",
         'signal_res': "Signal for",
-        'action_up': "🟢 UP (LONG)",
-        'action_down': "🔴 DOWN (SHORT)",
+        'action_up': "🟢 UP (CALL)",
+        'action_down': "🔴 DOWN (PUT)",
         'lang_set': "Language set: English 🇬🇧"
     }
 }
 
-# --- СПИСКИ ---
+# --- СПИСКИ (ОНОВЛЕНО НА OTC ПАРИ) ---
 CURRENCY_PAIRS = [
-    "BTC/USDT", "ETH/USDT", "BNB/USDT", "XRP/USDT",
-    "SOL/USDT", "LTC/USDT", "ADA/USDT", "DOGE/USDT"
+    "EUR/USD OTC",
+    "EUR/TRY OTC",
+    "EUR/GBP OTC",
+    "AUD/USD OTC",
+    "EUR/NZD OTC",
+    "CAD/JPY OTC"
 ]
 
 TIMES = ["5 sec", "10 sec", "15 sec"]
@@ -103,18 +104,14 @@ def set_language(call):
         user_data[chat_id] = {}
     user_data[chat_id]['lang'] = lang_code
     
-    # Видаляємо повідомлення з вибором мови
     bot.delete_message(chat_id, call.message.message_id)
     
     text_dict = TEXTS[lang_code]
     
-    # Створюємо клавіатуру меню
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     item_signal = types.KeyboardButton(text_dict['menu_btn'])
     markup.add(item_signal)
     
-    # Відправляємо ВІТАЛЬНЕ ПОВІДОМЛЕННЯ
-    # disable_web_page_preview=False --> Вмикає відображення картинки сайту
     bot.send_message(
         chat_id, 
         text_dict['welcome_body'], 
@@ -140,6 +137,7 @@ def show_pairs(chat_id, texts):
     markup = types.InlineKeyboardMarkup(row_width=2)
     buttons = []
     for pair in CURRENCY_PAIRS:
+        # callback_data має обмеження по довжині, але ці назви влізуть
         buttons.append(types.InlineKeyboardButton(pair, callback_data=f'pair_{pair}'))
     markup.add(*buttons)
     
@@ -149,7 +147,8 @@ def show_pairs(chat_id, texts):
 @bot.callback_query_handler(func=lambda call: call.data.startswith('pair_'))
 def callback_pair(call):
     chat_id = call.message.chat.id
-    pair = call.data.split('_')[1]
+    # Отримуємо назву пари (все, що після 'pair_')
+    pair = call.data.replace('pair_', '')
     
     user_data[chat_id]['temp_pair'] = pair
     user_lang = user_data.get(chat_id, {}).get('lang', 'en')
@@ -178,14 +177,11 @@ def callback_time(call):
     texts = TEXTS[user_lang]
     pair = user_data[chat_id].get('temp_pair', 'Unknown')
     
-    # 1. Змінюємо текст на "Аналізую..."
     bot.edit_message_text(chat_id=chat_id, message_id=call.message.message_id, 
                           text=texts['analyzing'], parse_mode='HTML')
     
-    # 2. Робимо паузу 5 секунд
     time.sleep(5)
     
-    # 3. Генеруємо сигнал
     direction = random.choice([texts['action_up'], texts['action_down']])
     
     result_text = (
@@ -196,7 +192,6 @@ def callback_time(call):
         f"-------------------"
     )
     
-    # 4. Редагуємо повідомлення на результат
     bot.edit_message_text(chat_id=chat_id, message_id=call.message.message_id, 
                           text=result_text, parse_mode='HTML')
 
