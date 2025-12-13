@@ -9,49 +9,49 @@ API_TOKEN = '8584033541:AAHd4M5g7hNZ0_K5krbNg5vF8K-7fo0AJD0'
 bot = telebot.TeleBot(API_TOKEN)
 
 # --- БАЗА ДАНИХ (Тимчасова, в пам'яті) ---
-user_data = {}  # Зберігає налаштування: {user_id: {'lang': 'ua', 'pair': 'EUR/USD'}}
+user_data = {}  # Зберігає налаштування
 
 # --- ТЕКСТИ ТА ПЕРЕКЛАДИ ---
 TEXTS = {
     'ua': {
         'welcome': "Привіт! Оберіть мову:",
         'menu_btn': "📊 Отримати сигнал",
-        'choose_pair': "Оберіть валютну пару:",
+        'choose_pair': "Оберіть крипто-пару:",
         'choose_time': "Оберіть час експірації:",
-        'analyzing': "⏳ Аналізую ринок...",
+        'analyzing': "⏳ Аналізую ринок крипти...",
         'signal_res': "Сигнал для",
-        'action_up': "🟢 ВГОРУ (BUY)",
-        'action_down': "🔴 ВНИЗ (SELL)",
+        'action_up': "🟢 ВГОРУ (LONG)",
+        'action_down': "🔴 ВНИЗ (SHORT)",
         'lang_set': "Мову встановлено: Українська 🇺🇦"
     },
     'ru': {
         'welcome': "Привет! Выберите язык:",
         'menu_btn': "📊 Получить сигнал",
-        'choose_pair': "Выберите валютную пару:",
+        'choose_pair': "Выберите крипто-пару:",
         'choose_time': "Выберите время экспирации:",
-        'analyzing': "⏳ Анализирую рынок...",
+        'analyzing': "⏳ Анализирую рынок крипты...",
         'signal_res': "Сигнал для",
-        'action_up': "🟢 ВВЕРХ (BUY)",
-        'action_down': "🔴 ВНИЗ (SELL)",
+        'action_up': "🟢 ВВЕРХ (LONG)",
+        'action_down': "🔴 ВНИЗ (SHORT)",
         'lang_set': "Язык установлен: Русский 🇷🇺"
     },
     'en': {
         'welcome': "Hello! Choose language:",
         'menu_btn': "📊 Get Signal",
-        'choose_pair': "Choose currency pair:",
+        'choose_pair': "Choose crypto pair:",
         'choose_time': "Choose expiration time:",
-        'analyzing': "⏳ Analyzing market...",
+        'analyzing': "⏳ Analyzing crypto market...",
         'signal_res': "Signal for",
-        'action_up': "🟢 UP (BUY)",
-        'action_down': "🔴 DOWN (SELL)",
+        'action_up': "🟢 UP (LONG)",
+        'action_down': "🔴 DOWN (SHORT)",
         'lang_set': "Language set: English 🇬🇧"
     }
 }
 
-# --- СПИСКИ ---
+# --- ОНОВЛЕНИЙ СПИСОК ПАР (КРИПТА) ---
 CURRENCY_PAIRS = [
-    "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF",
-    "AUD/USD", "USD/CAD", "NZD/USD", "EUR/GBP"
+    "BTC/USDT", "ETH/USDT", "BNB/USDT", "XRP/USDT",
+    "SOL/USDT", "LTC/USDT", "ADA/USDT", "DOGE/USDT"
 ]
 
 TIMES = ["5 min", "10 min", "15 min"]
@@ -72,7 +72,7 @@ def send_welcome(message):
 # Обробка вибору мови
 @bot.callback_query_handler(func=lambda call: call.data.startswith('lang_'))
 def set_language(call):
-    lang_code = call.data.split('_')[1] # ua, ru або en
+    lang_code = call.data.split('_')[1]
     chat_id = call.message.chat.id
     
     if chat_id not in user_data:
@@ -100,7 +100,7 @@ def handle_message(message):
     else:
         bot.send_message(chat_id, "Type /start to restart.")
 
-# 3. Вибір валютної пари
+# 3. Вибір пари
 def show_pairs(chat_id, texts):
     markup = types.InlineKeyboardMarkup(row_width=2)
     buttons = []
